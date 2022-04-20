@@ -33,7 +33,7 @@ spec:
       serviceAccountName: aqua-kube-enforcer-sa
       containers:
         - name: kube-enforcer
-          image: registry.aquasec.com/kube-enforcer:6.5
+          image: registry.aquasec.com/kube-enforcer:2022.4.13
           imagePullPolicy: Always
           livenessProbe:
             httpGet:
@@ -59,6 +59,10 @@ spec:
                   name: aqua-kube-enforcer-token
                   key: token
                   optional: true
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
           envFrom:
           - configMapRef:
               name: aqua-csp-kube-enforcer

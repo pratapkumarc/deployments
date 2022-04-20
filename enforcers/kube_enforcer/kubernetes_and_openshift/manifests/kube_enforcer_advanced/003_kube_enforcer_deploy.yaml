@@ -31,8 +31,18 @@ spec:
       serviceAccountName: aqua-kube-enforcer-sa
       containers:
         - name: kube-enforcer
-          image: registry.aquasec.com/kube-enforcer:6.5
+          image: registry.aquasec.com/kube-enforcer:2022.4.13
           imagePullPolicy: Always
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
           ports:
             - containerPort: 8449
             - containerPort: 8442
@@ -62,7 +72,7 @@ spec:
             - name: AQUA_KE_SERVER_PORT
               value: "8442"
             - name: CLUSTER_NAME
-              value: "aqua-secure"   # Cluster display name in aqua enterprise.
+              value: "Default-cluster-name"   # Cluster display name in aqua enterprise.
             - name: AQUA_ENVOY_MODE
               value: "true"
             # Enable KA policy scanning via starboard
@@ -72,6 +82,10 @@ spec:
               value: "true"
             - name: AQUA_LOGICAL_NAME
               value: ""
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name  
           volumeMounts:
             - name: "certs"
               mountPath: "/certs"
@@ -80,7 +94,7 @@ spec:
           #  - name: aqua-grpc-kube-enforcer
           #    mountPath: /opt/aquasec/ssl
         - name: envoy
-          image: registry.aquasec.com/envoy:6.5
+          image: registry.aquasec.com/envoy:2022.4.13
           env:
           - name: ENVOY_UID
             value: "0"
