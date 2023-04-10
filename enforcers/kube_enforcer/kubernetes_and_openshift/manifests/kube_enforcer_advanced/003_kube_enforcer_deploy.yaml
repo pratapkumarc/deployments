@@ -21,6 +21,7 @@ metadata:
     app: aqua-kube-enforcer
     aqua.component: kubeenforcer
 spec:
+  #This is the recommended value, but can be configured
   replicas: 1
   template:
     metadata:
@@ -31,7 +32,7 @@ spec:
       serviceAccountName: aqua-kube-enforcer-sa
       containers:
         - name: kube-enforcer
-          image: registry.aquasec.com/kube-enforcer:2022.4.13
+          image: registry.aquasec.com/kube-enforcer:2022.4
           imagePullPolicy: Always
           livenessProbe:
             httpGet:
@@ -47,6 +48,9 @@ spec:
             - containerPort: 8449
             - containerPort: 8442
           env:
+            #Enable/Disable KB scanning on tainted nodes
+            - name: AQUA_KB_SCAN_TAINTED_NODES
+              value: "true"
             - name: AQUA_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -73,6 +77,14 @@ spec:
               value: "8442"
             - name: CLUSTER_NAME
               value: "Default-cluster-name"   # Cluster display name in aqua enterprise.
+            - name: AQUA_KB_IMAGE_NAME
+              value: "aquasec/kube-bench:v0.6.12"
+            - name: AQUA_ME_IMAGE_NAME
+              value: "registry.aquasec.com/microenforcer:2022.4"
+            - name: AQUA_KB_ME_REGISTRY_NAME
+              value: "aqua-registry"
+            - name: AQUA_ENFORCER_DS_NAME
+              value: "aqua-agent"                    #Sets Daemonset name
             - name: AQUA_ENVOY_MODE
               value: "true"
             # Enable KA policy scanning via starboard
@@ -82,6 +94,9 @@ spec:
               value: "true"
             - name: AQUA_LOGICAL_NAME
               value: ""
+            #Enable Skipping Kube-Bench on nodes based on node labels
+            # - name: AQUA_NODE_LABELS_TO_SKIP_KB
+              # value: ""          #Comma-separated node-labels for nodes on which Kube-Bench is to be skipped. key1=val1,key2=val2,...
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -94,7 +109,7 @@ spec:
           #  - name: aqua-grpc-kube-enforcer
           #    mountPath: /opt/aquasec/ssl
         - name: envoy
-          image: registry.aquasec.com/envoy:2022.4.13
+          image: registry.aquasec.com/envoy:2022.4
           env:
           - name: ENVOY_UID
             value: "0"
@@ -110,8 +125,6 @@ spec:
           ports:
             - containerPort: 8443
               protocol: TCP
-            - name: healthserver
-              containerPort: 8082
           readinessProbe:
             exec:
               command:
@@ -136,3 +149,83 @@ spec:
   selector:
     matchLabels:
       app: aqua-kube-enforcer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: starboard-operator
+  namespace: aqua
+  labels:
+    app: starboard-operator
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: starboard-operator
+  template:
+    metadata:
+      labels:
+        app: starboard-operator
+    spec:
+      serviceAccountName: starboard-operator
+      automountServiceAccountToken: true
+      securityContext: {}
+      containers:
+        - name: operator
+          image: docker.io/aquasec/starboard-operator:0.15.10
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: false
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: OPERATOR_NAMESPACE
+              value: aqua
+            - name: OPERATOR_TARGET_NAMESPACES
+              value: ""
+            - name: OPERATOR_LOG_DEV_MODE
+              value: "false"
+            - name: OPERATOR_CONCURRENT_SCAN_JOBS_LIMIT
+              value: "10"
+            - name: OPERATOR_SCAN_JOB_RETRY_AFTER
+              value: 30s
+            - name: OPERATOR_METRICS_BIND_ADDRESS
+              value: :8080
+            - name: OPERATOR_HEALTH_PROBE_BIND_ADDRESS
+              value: :9090
+            - name: OPERATOR_CIS_KUBERNETES_BENCHMARK_ENABLED
+              value: "false"
+            - name: OPERATOR_VULNERABILITY_SCANNER_ENABLED
+              value: "false"
+            - name: OPERATOR_BATCH_DELETE_LIMIT
+              value: "10"
+            - name: OPERATOR_BATCH_DELETE_DELAY
+              value: "10s"
+            - name: OPERATOR_CLUSTER_COMPLIANCE_ENABLED
+              value: "false"
+          ports:
+            - name: metrics
+              containerPort: 8080
+            - name: probes
+              containerPort: 9090
+          readinessProbe:
+            httpGet:
+              path: /readyz/
+              port: probes
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /healthz/
+              port: probes
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 10

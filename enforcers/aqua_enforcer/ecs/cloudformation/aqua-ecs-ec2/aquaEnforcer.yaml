@@ -73,7 +73,7 @@ Resources:
           Handler: index.lambda_handler
           Timeout: 10
           Role: !GetAtt "LambdaExecutionRole.Arn"
-          Runtime: python3.6
+          Runtime: python3.9
           Code:
             ZipFile: |
               import cfnresponse
@@ -131,7 +131,7 @@ Resources:
               Privileged: !Ref Taskprivileged
               LinuxParameters:
                 Capabilities:
-                  ADD:
+                  Add:
                     - SYS_ADMIN
                     - NET_ADMIN
                     - NET_RAW
@@ -144,6 +144,7 @@ Resources:
                     - AUDIT_CONTROL
                     - SYSLOG
                     - SYS_CHROOT
+                    - LINUX_IMMUTABLE
               LogConfiguration:
                 LogDriver: awslogs
                 Options:

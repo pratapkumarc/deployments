@@ -13,10 +13,6 @@ spec:
     port: 443
     protocol: TCP
     targetPort: 8443
-  - name: healthserver
-    port: 8082
-    protocol: TCP
-    targetPort: 8082
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -39,7 +35,7 @@ spec:
       serviceAccount: aqua-sa
       containers:
       - name: envoy
-        image: registry.aquasec.com/envoy:2022.4.13
+        image: registry.aquasec.com/envoy:2022.4
         env:
         - name: ENVOY_UID
           value: "0"
@@ -47,8 +43,6 @@ spec:
         ports:
         - name: https
           containerPort: 8443
-        - name: healthserver
-          containerPort: 8082
         volumeMounts:
         - name: config
           mountPath: /etc/envoy

@@ -2,6 +2,7 @@
 
 ENFORCER_SERVICE_FILE_NAME="aqua-enforcer.service"
 ENFORCER_SERVICE_NAME="aqua-enforcer"
+
 error_message(){
     echo "Error: ${1}"
     exit 1
@@ -34,6 +35,48 @@ remove_dirs() {
     fi
 
 }
+
+remove_selinux_module() {
+    semodule -l | grep aquavme
+    if [ $? -eq 0 ]; then
+        echo "Info: Removing SElinux policy module."
+        semodule -r aquavme
+    else
+        echo "Info: SElinux policy module not found"
+    fi
+}
+
+remove_selinux_module_fedora() {
+    semodule -l | grep aquavme
+    if [ $? -eq 0 ]; then
+        echo "Info: Removing SElinux policy module."
+        semodule -r fcos_aquavme
+    else
+        echo "Info: SElinux policy module not found"
+    fi
+}
+
+is_it_rhel() {
+  cat /etc/*release | grep PLATFORM_ID | grep "platform:el8\|platform:el9" &>/dev/null
+
+  if [ $? -eq 0 ]; then
+    echo "Info: This is RHEL 8\9 system. Going to disable SELinux policy module if exists"
+    remove_selinux_module
+  fi
+}
+
+is_it_fedora() {
+  cat /etc/*release | grep PLATFORM_ID | grep "platform:f3" &>/dev/null
+
+  if [ $? -eq 0 ]; then
+    echo "Info: This is a Fedora system. Going to disable SELinux policy module if exists"
+    remove_selinux_module_fedora
+  fi
+}
+
+
 stop_service
 remove_service
 remove_dirs
+is_it_rhel
+is_it_fedora
